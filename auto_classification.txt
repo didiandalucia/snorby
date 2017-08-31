@@ -1,0 +1,97 @@
+This is an easy workarround for all they need autoclassification!
+
+The scripts run automaticly and you can insert in autoclassification via snorby GUI simple, so as written here:
+
+Create a directory /root/scripte:
+
+mkdir /root/scripte
+
+cd /root/scripte
+
+vi autoclassification.sql
+
+Copy the code in this file:
+
+CREATE TABLE IF NOT EXISTS auto_classifications (
+	sig_id INT(11) NOT NULL,
+	classification_id INT(11) NOT NULL,
+	PRIMARY KEY (sig_id),
+	INDEX classification_id (classification_id)
+)
+COMMENT="Alle Classifications werden fuer events automatisch gesetzt, sofern hier definiert"
+COLLATE=utf8_unicode_ci
+ENGINE=InnoDB
+;
+
+INSERT IGNORE INTO auto_classifications
+               (sig_id,
+                classification_id)
+SELECT S.signature,
+                S.classification_id
+FROM    event AS S,
+               notes AS M
+WHERE S.cid = M.cid
+AND        M.body = 'AUTO';
+
+UPDATE event AS D,
+               notes AS N,
+               auto_classifications AS M
+SET       D.notes_count = 0
+WHERE D.cid = N.cid
+AND       M.sig_id = D.signature
+AND       N.body = 'AUTO';
+
+DELETE notes FROM notes 
+INNER JOIN event
+ON    event.cid = notes.cid
+INNER JOIN auto_classifications
+ON    auto_classifications.sig_id = event.signature
+AND   notes.body = 'AUTO';
+
+UPDATE event AS D,
+       auto_classifications AS M
+SET    D.classification_id = M.classification_id
+WHERE D.classification_id IS NULL
+AND   D.signature = M.sig_id;
+
+
+
+
+<<<<< END 
+
+Now you can test 1st time the funtion with:
+
+mysql -u root -p='PASSWORD' < autoclassification.sql
+
+You must change the user root to your user as preferad
+and the password as you have defined!
+
+When the script is running, create a cronjob expl:
+
+*/5 * * * * mysql -u root -p='PASSWORD' < /root/scripte/autoclassification.sql
+
+OR with complete path (please check the path)
+
+*/5 * * * * /usr/bin/mysql -u root -p='PASSWORD' < /root/scripte/autoclassification.sql
+
+OK: Now we will work in snorby:
+
+Go into an event and then use "Perform Mass Classification"
+And make this active! (Perform Mass Action)
+When finnished no auto-action will do! To prepare the autoaction,
+click in same event on the Button "Add A Note to this Event" then
+you write the text AUTO
+
+and save the Note. Now the Auto-Classification is set and will
+do for every events with same signature to same classification,
+when not set otherwise before! This jobs runs as in the cronjob
+set every 5 minutes or as you like you change expl. to 1 minute!
+
+About the Note AUTO, the autoclassification will add in the 
+table auto_classifications. When its added their, the note will
+been delete. 
+
+I hope, this makes you happy!
+1awww.com - Your Internet-Service-Provider
+
+Detlef Bracker
